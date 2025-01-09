@@ -1,15 +1,13 @@
 #include <Keypad.h>
 #include <LiquidCrystal.h>
 
-// Initialize the LCD
 LiquidCrystal lcd(13, 12, 11, 10, 9, 8);
 
-// Keypad setup
 const byte ROWS = 4;
 const byte COLS = 4;
 char keys[ROWS][COLS] = {
-  {'1', '2', '3', 'A'}, // 'A' will be used to indicate negative sign
-  {'4', '5', '6', 'B'}, // 'B' to pause the game
+  {'1', '2', '3', 'A'},
+  {'4', '5', '6', 'B'},
   {'7', '8', '9', 'C'},
   {'*', '0', '#', 'D'}
 };
@@ -17,15 +15,15 @@ byte rowPins[ROWS] = {7, 6, 5, 4};
 byte colPins[COLS] = {3, 2, 1, 0};
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
-int level = 1; // Level: 1 = Beginner, 2 = Medium, 3 = Hard, 4 = Advanced
+int level = 1;
 int roundNumber = 1;
 const int maxRounds = 3;
-int numCount = 5; // Number of numbers to display
+int numCount = 5;
 int numbers[5];
 int userAnswer = 0;
 char operation;
 char key;
-bool isNegative = false; // Track if the number is negative
+bool isNegative = false;
 int score = 0;
 
 void setup() {
@@ -38,33 +36,32 @@ void setup() {
 
 void loop() {
   key = keypad.getKey();
-
   if (key) {
     if (key >= '0' && key <= '9') {
       userAnswer = userAnswer * 10 + (key - '0');
       lcd.setCursor(0, 1);
       lcd.print(userAnswer);
-    } else if (key == '#') { // Enter key to submit answer
+    } else if (key == '#') {
       checkAnswer();
-    } else if (key == '*') { // Clear key
+    } else if (key == '*') {
       userAnswer = 0;
       isNegative = false;
       lcd.setCursor(0, 1);
       lcd.print("                ");
       lcd.setCursor(0, 1);
-    } else if (key == 'A') { // Use 'A' for negative sign
-      isNegative = !isNegative; // Toggle negative state
+    } else if (key == 'A') {
+      isNegative = !isNegative;
       lcd.setCursor(0, 1);
       if (isNegative) {
         lcd.print("-");
       } else {
         lcd.print(" ");
       }
-    } else if (key == 'B') { // Pause the game
+    } else if (key == 'B') {
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Game Paused");
-      delay(3000); // Pause duration
+      delay(3000);
       startGame();
     }
   }
@@ -88,16 +85,16 @@ void chooseDifficulty() {
   while (true) {
     key = keypad.getKey();
     if (key == '1') {
-      level = 1; // Beginner
+      level = 1;
       break;
     } else if (key == '2') {
-      level = 2; // Medium
+      level = 2;
       break;
     } else if (key == '3') {
-      level = 3; // Hard
+      level = 3;
       break;
     } else if (key == '4') {
-      level = 4; // Advanced
+      level = 4;
       break;
     }
   }
@@ -133,35 +130,57 @@ void startGame() {
   } else if (operation == '-') {
     lcd.print("Subtract numbers");
   }
-
   displayNumbers();
 }
 
 char selectOperation() {
-  int op = random(2); // 0 = addition, 1 = subtraction
-  if (op == 0) return '+';
-  else return '-';
+  int op = random(2);
+  return op == 0 ? '+' : '-';
 }
 
 void displayNumbers() {
-  int displayTime = 5000 / (roundNumber * level); // Decrease time with higher levels and rounds
+  int displayTime = 5000 / (roundNumber * level);
   for (int i = 0; i < numCount; i++) {
-    if (level == 1) { // Beginner: 1 to 9
-      numbers[i] = random(1, 10);
-    } else if (level == 2) { // Medium: 10 to 99
-      numbers[i] = random(10, 100);
-    } else if (level == 3) { // Hard: 10 to 99
-      numbers[i] = random(10, 100);
-    } else { // Advanced: 100 to 999
-      numbers[i] = random(100, 1000);
-    }
+    int newNumber;
+    bool unique;
+    do {
+      unique = true;
+      if (level == 1) {
+        newNumber = random(1, 10);
+      } else if (level == 2 || level == 3) {
+        newNumber = random(10, 100);
+      } else {
+        newNumber = random(100, 1000);
+      }
+      for (int j = 0; j < i; j++) {
+        if (numbers[j] == newNumber) {
+          unique = false;
+          break;
+        }
+      }
+    } while (!unique);
+
+    numbers[i] = newNumber;
+
     lcd.setCursor(0, 1);
     lcd.print(numbers[i]);
-    delay(displayTime);
+    delay(displayTime / 2);  // Show the number for half the display time
+
+    for (int blink = 0; blink < 2; blink++) { // Blink the number twice
+      lcd.setCursor(0, 1);
+      lcd.print("    ");
+      delay(level == 1 ? displayTime / 8 : displayTime / (4 * level)); // Adjust blink speed for beginner level
+      lcd.setCursor(0, 1);
+      lcd.print(numbers[i]);
+      delay(level == 1 ? displayTime / 2 : displayTime / (4 * level)); // Adjust blink speed for beginner level
+    }
+
     lcd.clear();
+    delay(1000);  // Blank screen for a second before showing the next number
     lcd.setCursor(0, 0);
   }
   userAnswer = 0;
+  isNegative = false; // Reset isNegative at the start of each round
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Enter result:");
@@ -175,6 +194,9 @@ void checkAnswer() {
   } else if (operation == '-') {
     correctAnswer = numbers[0];
     for (int i = 1; i < numCount; i++) correctAnswer -= numbers[i];
+    if (correctAnswer < 0) {
+      correctAnswer = -correctAnswer; // Ensure the answer is never negative
+    }
   }
 
   if (isNegative) {
@@ -184,7 +206,7 @@ void checkAnswer() {
   lcd.setCursor(0, 1);
   if (userAnswer == correctAnswer) {
     lcd.print("Correct!");
-    score += 10; // Add points for correct answer
+    score += 10;
     delay(2000);
     nextRound();
   } else {
@@ -198,12 +220,12 @@ void checkAnswer() {
 void handleRetryOrSkip() {
   while (true) {
     key = keypad.getKey();
-    if (key == '#') { // Retry from the start of the current level
+    if (key == '#') {
       roundNumber = 1;
       delay(2000);
       startGame();
       break;
-    } else if (key == '*') { // Skip to next round
+    } else if (key == '*') {
       nextRound();
       break;
     }
@@ -247,7 +269,7 @@ void endGameSummary() {
   delay(3000);
   welcomeMessage();
   delay(2000);
-  score = 0; // Reset score for a new game
+  score = 0;
 }
 
 void encouragementMessage() {
